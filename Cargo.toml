@@ -1,0 +1,12 @@
+[package]
+name = "apartment-monitor"
+version = "0.0.1"
+authors = ["David LaBarbera"]
+
+[dependencies]
+# rpi-mmal-rs = "0.0.3"
+rascam = "0.0.2"
+
+[[bin]]
+name = "door-monitor"
+path = "src/rust/main.rs"
