@@ -5,6 +5,7 @@ use std::fs::File;
 use std::io::Write;
 use std::{thread, time};
 
+
 fn main() {
     let info = info().unwrap();
     if info.cameras.len() < 1 {
@@ -15,10 +16,17 @@ fn main() {
     println!("Camera Info:\n{}", info);
     println!("------------\n");
 
-    simple_sync(&info.cameras[0]);
+    let camera_t = thread::spawn(move || {
+        for i in 1..4 {
+            println!("taking picture {}", i);
+            simple_sync(&info.cameras[0], i);
+        }
+    });
+
+    camera_t.join().unwrap();
 }
 
-fn simple_sync(info: &CameraInfo) {
+fn simple_sync(info: &CameraInfo, pic_number: u32) {
     let mut camera = SimpleCamera::new(info.clone()).unwrap();
     camera.activate().unwrap();
 
@@ -28,7 +36,8 @@ fn simple_sync(info: &CameraInfo) {
 
     println!("Camera Taking picture");
     let b = camera.take_one().unwrap();
-    File::create("image.jpg").unwrap().write_all(&b).unwrap();
+    let image_name = format!("door{}.jpg", pic_number);
+    File::create(image_name).unwrap().write_all(&b).unwrap();
 
     println!("Saved image as image.jpg");
 }
