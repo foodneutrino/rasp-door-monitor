@@ -4,8 +4,7 @@ version = "0.0.1"
 authors = ["David LaBarbera"]
 
 [dependencies]
-# rpi-mmal-rs = "0.0.3"
-rascam = "0.0.2"
+rascam = { version = "0.0.2", features = ["debug"] }
 
 [[bin]]
 name = "door-monitor"
