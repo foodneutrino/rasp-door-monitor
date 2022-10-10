@@ -5,6 +5,7 @@ authors = ["David LaBarbera"]
 
 [dependencies]
 rascam = { version = "0.0.2", features = ["debug"] }
+rppal = { version = "0.13.1", features = ["hal"] }
 
 [[bin]]
 name = "door-monitor"
