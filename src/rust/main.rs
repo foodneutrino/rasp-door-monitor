@@ -3,6 +3,7 @@ extern crate rascam;
 use rascam::{CameraInfo, SimpleCamera, info};
 use std::fs::File;
 use std::io::Write;
+use chrono::Local;
 use std::{thread, time};
 
 
@@ -20,6 +21,9 @@ fn main() {
         for i in 1..4 {
             println!("taking picture {}", i);
             simple_sync(&info.cameras[0], i);
+            println!("sleep");
+            let sleep_duration = time::Duration::from_millis(2000);
+            thread::sleep(sleep_duration);
         }
     });
 
@@ -27,16 +31,13 @@ fn main() {
 }
 
 fn simple_sync(info: &CameraInfo, pic_number: u32) {
+    println!("Camera activating");
     let mut camera = SimpleCamera::new(info.clone()).unwrap();
     camera.activate().unwrap();
 
-    println!("Camera activating");
-    let sleep_duration = time::Duration::from_millis(2000);
-    thread::sleep(sleep_duration);
-
     println!("Camera Taking picture");
     let b = camera.take_one().unwrap();
-    let image_name = format!("door{}.jpg", pic_number);
+    let image_name = format!("door-{}.jpg", Local::now().format("%d/%m/%Y-%T"));
     File::create(image_name).unwrap().write_all(&b).unwrap();
 
     println!("Saved image as image.jpg");

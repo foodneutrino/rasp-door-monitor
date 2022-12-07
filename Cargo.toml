@@ -4,6 +4,7 @@ version = "0.0.1"
 authors = ["David LaBarbera"]
 
 [dependencies]
+chrono = "0.4.23"
 rascam = { version = "0.0.2", features = ["debug"] }
 rppal = { version = "0.13.1", features = ["hal"] }
 
