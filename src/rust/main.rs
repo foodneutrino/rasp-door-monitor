@@ -1,11 +1,13 @@
 extern crate rascam;
+extern crate chrono;
+extern crate regex;
 
-use rascam::{CameraInfo, SimpleCamera, info};
+use rascam::{SimpleCamera, info};
 use std::fs::File;
 use std::io::Write;
-use chrono::Local;
-use std::{thread, time};
-
+use chrono::{Local, Duration};
+use std::{thread, time, fs, path::Path};
+use regex::{Regex, Match};
 
 fn main() {
     let info = info().unwrap();
@@ -18,9 +20,21 @@ fn main() {
     println!("------------\n");
 
     let camera_t = thread::spawn(move || {
-        for i in 1..4 {
-            println!("taking picture {}", i);
-            simple_sync(&info.cameras[0], i);
+        loop {
+            let time_re: Regex = Regex::new(r"^door-(?P<timestamp>\d{8}-\d{2}:\d{2}:\d{2}).jpg$").unwrap();
+            println!("Camera activating");
+            let onboard_camera = &info.cameras[0];
+            let mut camera = SimpleCamera::new(onboard_camera.clone()).unwrap();
+            camera.activate().unwrap();
+
+            // simple_sync(&info.cameras[0]);
+            take_photo(camera);
+
+            clean_old_photos(
+                5, time_re
+            );
+            
+            // take 1 picture every seconds
             println!("sleep");
             let sleep_duration = time::Duration::from_millis(2000);
             thread::sleep(sleep_duration);
@@ -30,15 +44,44 @@ fn main() {
     camera_t.join().unwrap();
 }
 
-fn simple_sync(info: &CameraInfo, pic_number: u32) {
-    println!("Camera activating");
-    let mut camera = SimpleCamera::new(info.clone()).unwrap();
-    camera.activate().unwrap();
-
+// fn simple_sync(info: &CameraInfo) {
+fn take_photo(mut camera: SimpleCamera) {
     println!("Camera Taking picture");
     let b = camera.take_one().unwrap();
-    let image_name = format!("door-{}.jpg", Local::now().format("%d/%m/%Y-%T"));
+    let image_name = format!("./door-{}.jpg", Local::now().format("%Y%m%d-%T"));
+    println!("Storing to {}", image_name);
     File::create(image_name).unwrap().write_all(&b).unwrap();
 
     println!("Saved image as image.jpg");
 }
+
+fn clean_old_photos(photo_count_to_keep: u16, time_re: Regex) {
+    let file_glob = Path::new("./");
+    // let oldest_timestamp = Local::now() - Duration::seconds(photo_count_to_keep);
+    let paths = fs::read_dir(&file_glob).unwrap();
+
+    let names = paths.filter_map(|entry| {
+        entry.ok().and_then(|e|
+          e.path().file_name()
+          .and_then(|n| n.to_str().map(|s| String::from(s)))
+        )
+      })
+      .filter_map(|old_file| {
+        let image_file = old_file.as_str()[..];
+        time_re
+         .captures(&image_file)
+         .map(|group| group.name("timestamp").unwrap().as_str())
+      })
+      .collect::<Vec<&str>>();
+
+      println!("Keeping: {} | {:?}", photo_count_to_keep, names);
+}
+
+
+/*
+      .map(|date| {
+        time_re
+        .captures(date.as_str()).unwrap()
+        .name("timestamp").unwrap().as_str()
+      })
+*/
