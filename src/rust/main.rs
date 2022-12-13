@@ -5,9 +5,9 @@ extern crate regex;
 use rascam::{SimpleCamera, info};
 use std::fs::File;
 use std::io::Write;
-use chrono::{Local, Duration};
+use chrono::{Local, Duration, naive::NaiveDateTime};
 use std::{thread, time, fs, path::Path};
-use regex::{Regex, Match};
+use regex::Regex;
 
 fn main() {
     let info = info().unwrap();
@@ -55,9 +55,9 @@ fn take_photo(mut camera: SimpleCamera) {
     println!("Saved image as image.jpg");
 }
 
-fn clean_old_photos(photo_count_to_keep: u16, time_re: Regex) {
+fn clean_old_photos(photo_count_to_keep: i64, time_re: Regex) {
     let file_glob = Path::new("./");
-    // let oldest_timestamp = Local::now() - Duration::seconds(photo_count_to_keep);
+    let oldest_timestamp = Local::now() - Duration::seconds(photo_count_to_keep);
     let paths = fs::read_dir(&file_glob).unwrap();
 
     let names = paths.filter_map(|entry| {
@@ -67,21 +67,15 @@ fn clean_old_photos(photo_count_to_keep: u16, time_re: Regex) {
         )
       })
       .filter_map(|old_file| {
-        let image_file = old_file.as_str()[..];
+        let image_file = &old_file.as_str()[..];
         time_re
-         .captures(&image_file)
-         .map(|group| group.name("timestamp").unwrap().as_str())
+         .captures(image_file)
+         .map(|group| {String::from(group.name("timestamp").unwrap().as_str())})
       })
-      .collect::<Vec<&str>>();
+      .filter(|date_str| {
+        NaiveDateTime::parse_from_str(date_str, "%Y%m%d-%H:%M:%S").unwrap() >= oldest_timestamp.naive_local()
+      })
+      .collect::<Vec<String>>();
 
       println!("Keeping: {} | {:?}", photo_count_to_keep, names);
 }
-
-
-/*
-      .map(|date| {
-        time_re
-        .captures(date.as_str()).unwrap()
-        .name("timestamp").unwrap().as_str()
-      })
-*/
