@@ -3,7 +3,7 @@ extern crate chrono;
 extern crate regex;
 
 use rascam::{SimpleCamera, info};
-use std::fs::File;
+use std::fs::{File, remove_file};
 use std::io::Write;
 use chrono::{Local, Duration, naive::NaiveDateTime};
 use std::{thread, time, fs, path::Path};
@@ -36,7 +36,7 @@ fn main() {
             
             // take 1 picture every seconds
             println!("sleep");
-            let sleep_duration = time::Duration::from_millis(2000);
+            let sleep_duration = time::Duration::from_millis(950);
             thread::sleep(sleep_duration);
         }
     });
@@ -73,9 +73,17 @@ fn clean_old_photos(photo_count_to_keep: i64, time_re: Regex) {
          .map(|group| {String::from(group.name("timestamp").unwrap().as_str())})
       })
       .filter(|date_str| {
-        NaiveDateTime::parse_from_str(date_str, "%Y%m%d-%H:%M:%S").unwrap() >= oldest_timestamp.naive_local()
+        NaiveDateTime::parse_from_str(date_str, "%Y%m%d-%H:%M:%S").unwrap() <= oldest_timestamp.naive_local()
       })
       .collect::<Vec<String>>();
 
-      println!("Keeping: {} | {:?}", photo_count_to_keep, names);
+      for dates in names.iter() {
+        let filename = format!("door-{}.jpg", dates);
+        println!("Deleting {}", filename);
+        match remove_file(filename) {
+            Ok(()) => println!("Finished"),
+            Err(err) => println!("Error: {:?}", err),
+
+        };
+      }
 }
