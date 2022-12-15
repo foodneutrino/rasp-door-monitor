@@ -3,11 +3,18 @@ extern crate chrono;
 extern crate regex;
 
 use rascam::{SimpleCamera, info};
-use std::fs::{File, remove_file};
+use std::fs::{File, remove_file, read_dir};
 use std::io::Write;
+use std::{time, path::Path};
+use std::{thread, sync::mpsc::channel};
 use chrono::{Local, Duration, naive::NaiveDateTime};
-use std::{thread, time, fs, path::Path};
 use regex::Regex;
+
+enum States {
+  MONITORING,
+  RECORDING,
+  STORING,
+}
 
 fn main() {
     let info = info().unwrap();
@@ -19,46 +26,67 @@ fn main() {
     println!("Camera Info:\n{}", info);
     println!("------------\n");
 
+    let (detector_s, detector_r) = channel();
+
+    let signal = thread::spawn(move || {
+      loop {
+        thread::sleep(time::Duration::from_millis(5000));
+        detector_s.send(States::RECORDING).expect("Failed to send");
+      }
+    });
+
     let camera_t = thread::spawn(move || {
+        let mut state = States::MONITORING;
+        let time_re: &Regex = &Regex::new(r"^door-(?P<timestamp>\d{8}-\d{2}:\d{2}:\d{2}).jpg$").unwrap();
+        println!("Camera activating");
+        let onboard_camera = &info.cameras[0];
+        let mut camera = SimpleCamera::new(onboard_camera.clone()).unwrap();
+        let reuable_camera: &mut SimpleCamera = &mut camera;
+        reuable_camera.activate().unwrap();
         loop {
-            let time_re: Regex = Regex::new(r"^door-(?P<timestamp>\d{8}-\d{2}:\d{2}:\d{2}).jpg$").unwrap();
-            println!("Camera activating");
-            let onboard_camera = &info.cameras[0];
-            let mut camera = SimpleCamera::new(onboard_camera.clone()).unwrap();
-            camera.activate().unwrap();
-
             // simple_sync(&info.cameras[0]);
-            take_photo(camera);
+            take_photo(reuable_camera);
 
-            clean_old_photos(
-                5, time_re
-            );
+            match detector_r.try_recv() {
+              Ok(_) => state = States::RECORDING,
+              Err(_e) => (),
+            };
+
+            match state {
+              States::MONITORING => clean_old_photos(5, time_re),
+              States::RECORDING => {
+                if count_images() >= 15 {
+                  state = States::STORING;
+                }
+              },
+              States::STORING => {
+                persist_all_images();
+                state = States::MONITORING;
+              },
+            }
             
-            // take 1 picture every seconds
-            println!("sleep");
-            let sleep_duration = time::Duration::from_millis(950);
-            thread::sleep(sleep_duration);
+            // take 1 picture every seconds, so sleep allowing slight processing time
+            thread::sleep(time::Duration::from_millis(950));
         }
     });
 
     camera_t.join().unwrap();
+    signal.join().unwrap();
 }
 
 // fn simple_sync(info: &CameraInfo) {
-fn take_photo(mut camera: SimpleCamera) {
+fn take_photo(camera: &mut SimpleCamera) {
     println!("Camera Taking picture");
     let b = camera.take_one().unwrap();
     let image_name = format!("./door-{}.jpg", Local::now().format("%Y%m%d-%T"));
     println!("Storing to {}", image_name);
     File::create(image_name).unwrap().write_all(&b).unwrap();
-
-    println!("Saved image as image.jpg");
 }
 
-fn clean_old_photos(photo_count_to_keep: i64, time_re: Regex) {
+fn clean_old_photos(photo_count_to_keep: i64, time_re: &Regex) {
     let file_glob = Path::new("./");
     let oldest_timestamp = Local::now() - Duration::seconds(photo_count_to_keep);
-    let paths = fs::read_dir(&file_glob).unwrap();
+    let paths = read_dir(&file_glob).unwrap();
 
     let names = paths.filter_map(|entry| {
         entry.ok().and_then(|e|
@@ -81,9 +109,18 @@ fn clean_old_photos(photo_count_to_keep: i64, time_re: Regex) {
         let filename = format!("door-{}.jpg", dates);
         println!("Deleting {}", filename);
         match remove_file(filename) {
-            Ok(()) => println!("Finished"),
+            Ok(()) => println!("\n"),
             Err(err) => println!("Error: {:?}", err),
 
         };
       }
+}
+
+fn count_images() -> i16 {
+  println!("******* image Count");
+  17
+}
+
+fn persist_all_images() {
+  println!("******* Persisted");
 }
