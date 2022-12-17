@@ -1,14 +1,16 @@
 extern crate rascam;
 extern crate chrono;
 extern crate regex;
+extern crate rppal;
 
 use rascam::{SimpleCamera, info};
 use std::fs::{File, remove_file, read_dir};
 use std::io::Write;
 use std::{time, path::Path, fmt};
-use std::{thread, sync::mpsc::{channel, Receiver}};
+use std::{thread, sync::mpsc::{channel, Receiver, Sender}};
 use chrono::{Local, Duration, naive::NaiveDateTime};
 use regex::Regex;
+use rppal::gpio::{Gpio, Level};
 
 enum States {
   MONITORING,
@@ -25,20 +27,50 @@ impl fmt::Display for States {
   }
 }
 
+const LED_PIN: u8 = 17;
+const MOTION_BCM_PIN: u8 = 22;
+
 fn main() {
     let (detector_s, detector_r) = channel();
 
-    let signal = thread::spawn(move || {
-      loop {
-        thread::sleep(time::Duration::from_millis(30000));
-        detector_s.send(States::RECORDING).expect("Failed to send");
-      }
-    });
+    // let signal = thread::spawn(move || {
+    //   loop {
+    //     thread::sleep(time::Duration::from_millis(30000));
+    //     detector_s.send(States::RECORDING).expect("Failed to send");
+    //   }
+    // });
 
+    let motion_detector = motion_thread(detector_s);
     let camera_t = photo_thread(detector_r);
 
     camera_t.join().unwrap();
-    signal.join().unwrap();
+    motion_detector.join().unwrap();
+}
+
+fn motion_thread(sendr: Sender<States>) -> thread::JoinHandle<i16> {
+  let gpio = Gpio::new().unwrap();
+
+  println!("Initializing GPIO:\n");
+  println!("------------\n");
+
+  let led_pin = gpio.get(LED_PIN).unwrap();
+  let motion_pin = gpio.get(MOTION_BCM_PIN).unwrap();
+  
+  println!("Levels | Led: {} | Motion: {}", led_pin.read(), motion_pin.read());
+  let mut led_output = led_pin.into_output();
+  let mut motion_input = motion_pin.into_input();
+  thread::spawn(move || {
+    loop {
+        if motion_input.read() == Level::High {
+            println!("Motion detected");
+            led_output.set_high();
+            sendr.send(States::RECORDING).expect("Failed to send");
+        } else {
+            led_output.set_low();
+        };
+        thread::sleep(time::Duration::from_millis(10));
+    };
+  })
 }
 
 fn photo_thread(recv: Receiver<States>) -> thread::JoinHandle<i16> {
@@ -84,8 +116,11 @@ fn photo_thread(recv: Receiver<States>) -> thread::JoinHandle<i16> {
           }
         },
         States::STORING => {
+          // Store the captured images and reset state
+          // which includes clearing the channel buffer
           persist_all_images();
           state = States::MONITORING;
+          recv.try_iter().skip_while(|x| x);
           println!("****** State Change: {}", state);
           pic_counter = 0;
         },
