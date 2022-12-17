@@ -33,13 +33,6 @@ const MOTION_BCM_PIN: u8 = 22;
 fn main() {
     let (detector_s, detector_r) = channel();
 
-    // let signal = thread::spawn(move || {
-    //   loop {
-    //     thread::sleep(time::Duration::from_millis(30000));
-    //     detector_s.send(States::RECORDING).expect("Failed to send");
-    //   }
-    // });
-
     let motion_detector = motion_thread(detector_s);
     let camera_t = photo_thread(detector_r);
 
@@ -58,7 +51,7 @@ fn motion_thread(sendr: Sender<States>) -> thread::JoinHandle<i16> {
   
   println!("Levels | Led: {} | Motion: {}", led_pin.read(), motion_pin.read());
   let mut led_output = led_pin.into_output();
-  let mut motion_input = motion_pin.into_input();
+  let motion_input = motion_pin.into_input();
   thread::spawn(move || {
     loop {
         if motion_input.read() == Level::High {
@@ -99,6 +92,7 @@ fn photo_thread(recv: Receiver<States>) -> thread::JoinHandle<i16> {
 
       if let States::MONITORING = state {
         if let Ok(s) = recv.try_recv() {
+          println!("****** Existing State: {}", state);
           state = s;
           println!("****** State Change: {}", state);
         };
@@ -120,8 +114,8 @@ fn photo_thread(recv: Receiver<States>) -> thread::JoinHandle<i16> {
           // which includes clearing the channel buffer
           persist_all_images();
           state = States::MONITORING;
-          recv.try_iter().skip_while(|x| x);
-          println!("****** State Change: {}", state);
+          let msgs = recv.try_iter().collect::<Vec<States>>();
+          println!("****** State Change: {}; dropped {} messages", state, msgs.len());
           pic_counter = 0;
         },
       }
