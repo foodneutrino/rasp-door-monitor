@@ -4,9 +4,9 @@ extern crate regex;
 extern crate rppal;
 
 use rascam::{SimpleCamera, info};
-use std::fs::{File, remove_file, read_dir};
+use std::fs::{File, remove_file, read_dir, create_dir, copy};
 use std::io::Write;
-use std::{time, path::Path, fmt};
+use std::{time, path::{Path, PathBuf}, fmt};
 use std::{thread, sync::mpsc::{channel, Receiver, Sender}};
 use chrono::{Local, Duration, naive::NaiveDateTime};
 use regex::Regex;
@@ -55,7 +55,7 @@ fn motion_thread(sendr: Sender<States>) -> thread::JoinHandle<i16> {
   thread::spawn(move || {
     loop {
         if motion_input.read() == Level::High {
-            println!("Motion detected");
+            println!("****** Motion detected");
             led_output.set_high();
             sendr.send(States::RECORDING).expect("Failed to send");
         } else {
@@ -112,7 +112,7 @@ fn photo_thread(recv: Receiver<States>) -> thread::JoinHandle<i16> {
         States::STORING => {
           // Store the captured images and reset state
           // which includes clearing the channel buffer
-          persist_all_images();
+          persist_all_images(time_re);
           state = States::MONITORING;
           let msgs = recv.try_iter().collect::<Vec<States>>();
           println!("****** State Change: {}; dropped {} messages", state, msgs.len());
@@ -134,29 +134,38 @@ fn take_photo(camera: &mut SimpleCamera) {
     File::create(image_name).unwrap().write_all(&b).unwrap();
 }
 
-fn clean_old_photos(photo_count_to_keep: i64, time_re: &Regex) {
-    let file_glob = Path::new("./");
-    let oldest_timestamp = Local::now() - Duration::seconds(photo_count_to_keep);
-    let paths = read_dir(&file_glob).unwrap();
-
-    let names = paths.filter_map(|entry| {
-        entry.ok().and_then(|e|
-          e.path().file_name()
-          .and_then(|n| n.to_str().map(|s| String::from(s)))
+fn get_file_pattern_cwd(pattern: &Regex) -> Vec<String> {
+  read_dir(Path::new("./")).unwrap()
+    .filter_map(|entry| {
+      entry.ok()
+        .and_then(|e| e.path().file_name()
+          .and_then(|n| n.to_str()
+            .map(|s| {
+              pattern
+                .captures(s)
+                .map(|group| {
+                  String::from(group.name("timestamp").unwrap().as_str())
+                })
+            })
+          )
         )
-      })
-      .filter_map(|old_file| {
-        let image_file = &old_file.as_str()[..];
-        time_re
-         .captures(image_file)
-         .map(|group| {String::from(group.name("timestamp").unwrap().as_str())})
-      })
+    })
+    .filter(|filename| filename.is_some())
+    .map(|filename| filename.unwrap())
+    .collect::<Vec<String>>()
+}
+
+fn clean_old_photos(photo_count_to_keep: i64, time_re: &Regex) {
+    let oldest_timestamp = Local::now() - Duration::seconds(photo_count_to_keep);
+    
+    let old_names = get_file_pattern_cwd(time_re).iter()
       .filter(|date_str| {
         NaiveDateTime::parse_from_str(date_str, "%Y%m%d-%H:%M:%S").unwrap() <= oldest_timestamp.naive_local()
       })
+      .map(|date| String::from(date))
       .collect::<Vec<String>>();
 
-      for dates in names.iter() {
+      for dates in old_names.iter() {
         let filename = format!("door-{}.jpg", dates);
         println!("****** Deleting {}", filename);
         if let Err(e) = remove_file(filename) {
@@ -165,6 +174,34 @@ fn clean_old_photos(photo_count_to_keep: i64, time_re: &Regex) {
       }
 }
 
-fn persist_all_images() {
+fn persist_all_images(file_pattern: &Regex) {
+  let mut dest_path = PathBuf::new();
+  dest_path.set_file_name(
+    format!("./detection_{}", Local::now().format("%Y%m%d_%T"))
+  );
+  if let Err(e) = create_dir(dest_path.as_path()) {
+    println!("****** Failed creating directory {:?}", e)
+  };
+
+  let files_to_copy = get_file_pattern_cwd(file_pattern);
+  for filename in files_to_copy {
+    let mut source_file = PathBuf::new();
+    source_file.set_file_name(
+      format!("./door-{}.jpg", filename)
+    );
+    dest_path.push(source_file.as_path());
+    if let Err(e) = copy(source_file.as_path(), dest_path.as_path()) {
+      println!(
+        "****** Source {} | Destination {} | Error {:?}", 
+        source_file.to_str().unwrap(), 
+        dest_path.to_str().unwrap(), e
+      );
+    } else {
+      if let Err(e) = remove_file(&source_file) {
+        println!("****** Source {} | Error {:?}", source_file.to_str().unwrap(), e);
+      };
+    };
+    dest_path.pop();
+  };
   println!("******* Persisted");
 }
