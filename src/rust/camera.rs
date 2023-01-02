@@ -5,6 +5,7 @@ use std::{fs::{File, create_dir, copy}, path::PathBuf};
 use std::io::Write;
 use regex::Regex;
 use rascam::{SimpleCamera, info};
+use chrono::{Local, Duration};
 
 fn photo_thread(recv: Receiver<utils::States>) -> thread::JoinHandle<i16> {
     let info = info().unwrap();
@@ -61,7 +62,9 @@ fn photo_thread(recv: Receiver<utils::States>) -> thread::JoinHandle<i16> {
         }
         
         // take 1 picture every seconds, so sleep allowing slight processing time
-        thread::sleep(time::Duration::from_millis(950));
+        if let Ok(sleep_time) = Duration::milliseconds(950).to_std() {
+          thread::sleep(sleep_time)
+        };
       };
     })
   }

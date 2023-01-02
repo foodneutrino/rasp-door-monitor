@@ -2,6 +2,7 @@ mod utils;
 
 use rppal::gpio::{Gpio, Level};
 use std::{thread, sync::mpsc::Sender};
+use chrono::Duration;
 
 const LED_PIN: u8 = 17;
 const MOTION_BCM_PIN: u8 = 22;
@@ -27,7 +28,9 @@ fn motion_thread(sendr: Sender<utils::States>) -> thread::JoinHandle<i16> {
           } else {
               led_output.set_low();
           };
-          thread::sleep(time::Duration::from_millis(10));
+          if let Ok(sleep_time) = Duration::milliseconds(10).to_std() {
+            thread::sleep(sleep_time)
+          };
       };
     })
   }
