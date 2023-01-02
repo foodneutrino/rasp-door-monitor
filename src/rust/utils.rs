@@ -1,10 +1,10 @@
-use std::io::Write;
 use std::fmt;
 use regex::Regex;
 use std::path::Path;
+use std::fs::{remove_file, read_dir};
 use chrono::{Local, Duration, naive::NaiveDateTime};
 
-enum States {
+pub enum States {
   MONITORING,
   RECORDING,
   STORING,
@@ -20,7 +20,7 @@ impl fmt::Display for States {
   }
 }
 
-fn get_file_pattern_cwd(pattern: &Regex) -> Vec<String> {
+pub fn get_file_pattern_cwd(pattern: &Regex) -> Vec<String> {
     read_dir(Path::new("./")).unwrap()
       .filter_map(|entry| {
         entry.ok()
@@ -41,7 +41,7 @@ fn get_file_pattern_cwd(pattern: &Regex) -> Vec<String> {
       .collect::<Vec<String>>()
   }
 
-  fn clean_old_photos(photo_count_to_keep: i64, time_re: &Regex) {
+  pub fn clean_old_photos(photo_count_to_keep: i64, time_re: &Regex) {
     let oldest_timestamp = Local::now() - Duration::seconds(photo_count_to_keep);
     
     let old_names = get_file_pattern_cwd(time_re).iter()

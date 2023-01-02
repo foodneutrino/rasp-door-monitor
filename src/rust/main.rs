@@ -3,11 +3,11 @@ extern crate chrono;
 extern crate regex;
 extern crate rppal;
 
-mod camera
-mod utils
-mod detector
+mod camera;
+mod utils;
+mod detector;
 
-use std::{thread, sync::mpsc::channel};
+use std::sync::mpsc::channel;
 
 fn main() {
     let (detector_s, detector_r) = channel();
