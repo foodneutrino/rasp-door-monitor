@@ -1,13 +1,12 @@
-mod utils;
-
 use std::{thread, sync::mpsc::Receiver};
-use std::{fs::{File, create_dir, copy}, path::PathBuf};
+use std::{fs::{File, create_dir, copy, remove_file}, path::PathBuf};
 use std::io::Write;
 use regex::Regex;
 use rascam::{SimpleCamera, info};
 use chrono::{Local, Duration};
+use super::utils::{States, clean_old_photos, get_file_pattern_cwd};
 
-fn photo_thread(recv: Receiver<utils::States>) -> thread::JoinHandle<i16> {
+pub fn photo_thread(recv: Receiver<States>) -> thread::JoinHandle<i16> {
     let info = info().unwrap();
     if info.cameras.len() < 1 {
         println!("****** Found 0 cameras. Exiting");
@@ -17,7 +16,7 @@ fn photo_thread(recv: Receiver<utils::States>) -> thread::JoinHandle<i16> {
     println!("------------\n");
     
     thread::spawn(move || {
-      let mut state = utils::States::MONITORING;
+      let mut state = States::MONITORING;
       let time_re: &Regex = &Regex::new(r"^door-(?P<timestamp>\d{8}-\d{2}:\d{2}:\d{2}).jpg$").unwrap();
       let onboard_camera = &info.cameras[0];
       let mut camera = SimpleCamera::new(onboard_camera.clone()).unwrap();
@@ -31,7 +30,7 @@ fn photo_thread(recv: Receiver<utils::States>) -> thread::JoinHandle<i16> {
         // simple_sync(&info.cameras[0]);
         take_photo(reuable_camera);
   
-        if let utils::States::MONITORING = state {
+        if let States::MONITORING = state {
           if let Ok(s) = recv.try_recv() {
             println!("****** Existing State: {}", state);
             state = s;
@@ -40,22 +39,22 @@ fn photo_thread(recv: Receiver<utils::States>) -> thread::JoinHandle<i16> {
         };
   
         match state {
-          utils::States::MONITORING => {
-            utils::clean_old_photos(5, time_re);
+          States::MONITORING => {
+            clean_old_photos(5, time_re);
             pic_counter = 0;
           },
-          utils::States::RECORDING => {
+          States::RECORDING => {
             if pic_counter >= 10 {
-              state = utils::States::STORING;
+              state = States::STORING;
               println!("****** State Change: {}", state);
             }
           },
-          utils::States::STORING => {
+          States::STORING => {
             // Store the captured images and reset state
             // which includes clearing the channel buffer
             persist_all_images(time_re);
-            state = utils::States::MONITORING;
-            let msgs = recv.try_iter().collect::<Vec<utils::States>>();
+            state = States::MONITORING;
+            let msgs = recv.try_iter().collect::<Vec<States>>();
             println!("****** State Change: {}; dropped {} messages", state, msgs.len());
             pic_counter = 0;
           },
@@ -86,7 +85,7 @@ fn persist_all_images(file_pattern: &Regex) {
     println!("****** Failed creating directory {:?}", e)
   };
 
-  let files_to_copy = utils::get_file_pattern_cwd(file_pattern);
+  let files_to_copy = get_file_pattern_cwd(file_pattern);
   for filename in files_to_copy {
     let mut source_file = PathBuf::new();
     source_file.set_file_name(

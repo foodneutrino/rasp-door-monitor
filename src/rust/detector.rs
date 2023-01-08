@@ -1,13 +1,12 @@
-mod utils;
-
 use rppal::gpio::{Gpio, Level};
 use std::{thread, sync::mpsc::Sender};
 use chrono::Duration;
+use super::utils::States;
 
 const LED_PIN: u8 = 17;
 const MOTION_BCM_PIN: u8 = 22;
 
-fn motion_thread(sendr: Sender<utils::States>) -> thread::JoinHandle<i16> {
+pub fn motion_thread(sendr: Sender<States>) -> thread::JoinHandle<i16> {
     let gpio = Gpio::new().unwrap();
   
     println!("Initializing GPIO:\n");
@@ -24,7 +23,7 @@ fn motion_thread(sendr: Sender<utils::States>) -> thread::JoinHandle<i16> {
           if motion_input.read() == Level::High {
               println!("****** Motion detected");
               led_output.set_high();
-              sendr.send(utils::States::RECORDING).expect("Failed to send");
+              sendr.send(States::RECORDING).expect("Failed to send");
           } else {
               led_output.set_low();
           };

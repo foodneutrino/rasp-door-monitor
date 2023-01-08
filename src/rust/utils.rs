@@ -12,11 +12,11 @@ pub enum States {
 
 impl fmt::Display for States {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-     match *self {
-         States::MONITORING => write!(f, "Monitoring"),
-         States::RECORDING => write!(f, "Recording"),
-         States::STORING => write!(f, "Storing"),
-     }
+    match *self {
+        States::MONITORING => write!(f, "Monitoring"),
+        States::RECORDING => write!(f, "Recording"),
+        States::STORING => write!(f, "Storing"),
+    }
   }
 }
 
