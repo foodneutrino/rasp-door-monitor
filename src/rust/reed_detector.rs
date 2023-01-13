@@ -20,7 +20,7 @@ pub fn reed_thread(sendr: Sender<States>) -> thread::JoinHandle<i16> {
     let motion_input = motion_pin.into_input_pullup();
     thread::spawn(move || {
       loop {
-          if motion_input.read() == Level::Low {
+          if motion_input.read() == Level::High {
               println!("****** Motion detected");
               led_output.set_high();
               sendr.send(States::RECORDING).expect("Failed to send");

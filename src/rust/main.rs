@@ -4,7 +4,7 @@ extern crate regex;
 extern crate rppal;
 
 mod camera;
-mod reed-detector;
+mod reed_detector;
 pub mod utils;
 
 use std::sync::mpsc::channel;
@@ -12,7 +12,7 @@ use std::sync::mpsc::channel;
 fn main() {
     let (detector_s, detector_r) = channel();
 
-    let motion_detector = detector::reed_thread(detector_s);
+    let motion_detector = reed_detector::reed_thread(detector_s);
     let camera_t = camera::photo_thread(detector_r);
 
     camera_t.join().unwrap();
