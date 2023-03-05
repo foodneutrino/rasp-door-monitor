@@ -8,6 +8,9 @@ chrono = "0.4.23"
 rascam = { version = "0.0.2", features = ["debug"] }
 rppal = { version = "0.13.1", features = ["hal"] }
 regex = "1"
+aws-config = "0.53.0"
+aws-sdk-s3 = "0.23.0"
+tokio = { version = "1.20.1", features = ["full"] }
 
 [[bin]]
 name = "door-monitor"

@@ -1,12 +1,13 @@
 use std::{thread, sync::mpsc::Receiver};
-use std::{fs::{File, create_dir, copy, remove_file}, path::PathBuf};
+use std::{fs::{File, remove_file}, path::PathBuf};
 use std::io::Write;
 use regex::Regex;
 use rascam::{SimpleCamera, info};
 use chrono::{Local, Duration};
-use super::utils::{States, clean_old_photos, get_file_pattern_cwd};
+use crate::utils::{States, clean_old_photos, get_file_pattern_cwd};
+use crate::storage::base::StorageEngine;
 
-pub fn photo_thread(recv: Receiver<States>) -> thread::JoinHandle<i16> {
+pub fn photo_thread(recv: Receiver<States>, storage: Box<dyn StorageEngine>) -> thread::JoinHandle<i16> {
     let info = info().unwrap();
     if info.cameras.len() < 1 {
         println!("****** Found 0 cameras. Exiting");
@@ -52,7 +53,7 @@ pub fn photo_thread(recv: Receiver<States>) -> thread::JoinHandle<i16> {
           States::STORING => {
             // Store the captured images and reset state
             // which includes clearing the channel buffer
-            persist_all_images(time_re);
+            persist_all_images(&storage, time_re);
             state = States::MONITORING;
             let msgs = recv.try_iter().collect::<Vec<States>>();
             println!("****** State Change: {}; dropped {} messages", state, msgs.len());
@@ -76,34 +77,17 @@ pub fn photo_thread(recv: Receiver<States>) -> thread::JoinHandle<i16> {
       File::create(image_name).unwrap().write_all(&b).unwrap();
   }
 
-fn persist_all_images(file_pattern: &Regex) {
-  let mut dest_path = PathBuf::new();
-  dest_path.set_file_name(
-    format!("./detection_{}", Local::now().format("%Y%m%d_%T"))
-  );
-  if let Err(e) = create_dir(dest_path.as_path()) {
-    println!("****** Failed creating directory {:?}", e)
-  };
-
+fn persist_all_images(storage_type: &Box<dyn StorageEngine>, file_pattern: &Regex) {
   let files_to_copy = get_file_pattern_cwd(file_pattern);
   for filename in files_to_copy {
-    let mut source_file = PathBuf::new();
-    source_file.set_file_name(
-      format!("./door-{}.jpg", filename)
-    );
-    dest_path.push(source_file.as_path());
-    if let Err(e) = copy(source_file.as_path(), dest_path.as_path()) {
-      println!(
-        "****** Source {} | Destination {} | Error {:?}", 
-        source_file.to_str().unwrap(), 
-        dest_path.to_str().unwrap(), e
-      );
-    } else {
-      if let Err(e) = remove_file(&source_file) {
-        println!("****** Source {} | Error {:?}", source_file.to_str().unwrap(), e);
-      };
+    if let Ok(()) = storage_type.store(
+      format!("./door-{}.jpg", filename).as_str(), 
+      format!("./detection_{}", Local::now().format("%Y%m%d_%T")).as_str()
+    ) {
+      let mut delete_file = PathBuf::new();
+      delete_file.set_file_name(filename);
+      remove_file(delete_file.as_path());
     };
-    dest_path.pop();
   };
   println!("******* Persisted");
 }
