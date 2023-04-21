@@ -88,7 +88,7 @@ pub fn connect(region: &str) -> Result<S3BlockingClient, &'static str> {
             let shared_config = rt.block_on(aws_config::from_env().region(region_provider).load());
             let client = Client::new(&shared_config);
 
-            let bucket_name = String::from("default-bucket");
+            let bucket_name = String::from("door-images");
 
             Ok(S3BlockingClient { client, rt, bucket_name})
         }
@@ -109,7 +109,10 @@ impl StorageEngine for S3BlockingClient {
         println!("Writing {} to s3 {}", local_path, destination); // need to add bucket!
         let mut store_file = PathBuf::new();
         store_file.set_file_name(local_path);
-        if let Err(err_str) = self.store(store_file.as_path(), &destination) {
+        if let Err(err_str) = self.store(
+            store_file.as_path(), 
+            format!({}/{}, self.bucket_name, destination).as_str()
+        ) {
             Err(format!("move {} to S3 Failed: {}", local_path, err_str))
         } else {
             Ok(())
