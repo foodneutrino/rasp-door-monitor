@@ -39,7 +39,7 @@ impl S3BlockingClient {
     pub fn store(
         &self,
         source_file: &Path,
-        destination_bucket: &str
+        destination_full_path: &str
     ) -> Result<PutObjectOutput, String> {
         println!(
             "Attemp to store {} at {}",
@@ -53,8 +53,8 @@ impl S3BlockingClient {
                 Ok(self
                     .client
                     .put_object()
-                    .bucket(destination_bucket)
-                    .key(source_file.to_str().unwrap())
+                    .bucket(self.bucket_name)
+                    .key(destination_full_path)
                     .body(body)
                 )
             })
@@ -110,7 +110,7 @@ impl StorageEngine for S3BlockingClient {
         store_file.set_file_name(local_path);
         if let Err(err_str) = self.store(
             store_file.as_path(), 
-            self.bucket_name.as_str()
+            destination
         ) {
             Err(format!("move {} to S3 Failed: {}", local_path, err_str))
         } else {

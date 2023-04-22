@@ -14,7 +14,7 @@ mod storage;
 use std::sync::mpsc::channel;
 use detector::reed_detector;
 use capture::camera;
-use storage::s3_sync::connect;
+use storage::local_to_s3::connect;
 
 fn main() {
     let storage_destination = connect("us-east-1").unwrap();
