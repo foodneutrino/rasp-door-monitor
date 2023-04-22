@@ -61,7 +61,6 @@ impl S3BlockingClient {
             .and_then(|put_obj_future| {
                 self.rt
                     .block_on(put_obj_future.send())
-                    //.map_err(|_| "S3 store failed")
                     .map_err(|err| err.to_string())
             })
     }
@@ -111,7 +110,7 @@ impl StorageEngine for S3BlockingClient {
         store_file.set_file_name(local_path);
         if let Err(err_str) = self.store(
             store_file.as_path(), 
-            format!({}/{}, self.bucket_name, destination).as_str()
+            self.bucket_name.as_str()
         ) {
             Err(format!("move {} to S3 Failed: {}", local_path, err_str))
         } else {

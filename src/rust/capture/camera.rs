@@ -81,12 +81,14 @@ fn persist_all_images(storage_type: &Box<dyn StorageEngine>, file_pattern: &Rege
   let files_to_copy = get_file_pattern_cwd(file_pattern);
   for filename in files_to_copy {
     if let Ok(()) = storage_type.store(
-      format!("./door-{}.jpg", filename).as_str(), 
-      format!("./detection_{}", Local::now().format("%Y%m%d_%T")).as_str()
+      format!("door-{}.jpg", filename).as_str(), 
+      format!("detection_{}", Local::now().format("%Y%m%d_%T")).as_str()
     ) {
       let mut delete_file = PathBuf::new();
       delete_file.set_file_name(filename);
-      remove_file(delete_file.as_path());
+      if let Err(err) = remove_file(delete_file.as_path()) {
+         println!("Remove File Failed: {}", err);
+      }
     };
   };
   println!("******* Persisted");
