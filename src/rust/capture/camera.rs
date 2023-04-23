@@ -80,12 +80,12 @@ pub fn photo_thread(recv: Receiver<States>, storage: Box<dyn StorageEngine>) -> 
 fn persist_all_images(storage_type: &Box<dyn StorageEngine>, file_pattern: &Regex) {
   let files_to_copy = get_file_pattern_cwd(file_pattern);
   let time_base = Local::now().format("%Y%m%d_%T"); 
-  let mut x = 0;
+  let mut image_number: u8 = 1;
   for filename in files_to_copy {
     let file_to_store = format!("door-{}.jpg", filename);
     if let Ok(()) = storage_type.store(
       file_to_store.as_str(),
-      format!("{}/detection_{}", time_base, x).as_str()
+      format!("{}/detection_{:0>2}", time_base, image_number).as_str()
     ) {
       let mut delete_file = PathBuf::new();
       delete_file.set_file_name(file_to_store);
@@ -94,7 +94,7 @@ fn persist_all_images(storage_type: &Box<dyn StorageEngine>, file_pattern: &Rege
          println!("Remove File Failed: {}", err);
       }
     };
-    x += 1;
+    image_number += 1;
   };
   println!("******* Persisted");
 }
