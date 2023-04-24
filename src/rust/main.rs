@@ -34,22 +34,23 @@ fn main() {
 
     let camera_t = camera::photo_thread();
 
-    controller(camera_t, motion_detector, detector_r, Box::new(storage_destination));
+    println!("***** Threads created");
+    controller(&detector_r, Box::new(storage_destination));
+
+    camera_t.join().expect("***** Camera thread failed");
+    motion_detector.join().expect("***** Detector thread failed");
+
 }
 
 fn controller(
-    camera: thread::JoinHandle<i16>,
-    detector: thread::JoinHandle<i16>,
-    recv_channel: Receiver<States>,
+    recv_channel: &Receiver<States>,
     storage: Box<dyn StorageEngine>,
 ) {
     let mut state = States::MONITORING;
     let time_re: &Regex =
         &Regex::new(r"^door-(?P<timestamp>\d{8}-\d{2}:\d{2}:\d{2}).jpg$").unwrap();
 
-    camera.join().unwrap();
-    detector.join().unwrap();
-
+    println!("***** Entering State Loop");
     loop {
         // assume camera thread is taking 1 picture a second
         // will look for messages from detector
@@ -59,10 +60,12 @@ fn controller(
             // or clean up older photos
             States::MONITORING => match recv_channel.try_recv() {
                 Ok(s) => {
-                    println!("State: {} => {}", state, s);
+                    println!("***** State: {} => {}", state, s);
                     state = s;
                 }
-                Err(_) => clean_old_photos(5, time_re),
+                Err(_) => {
+                    clean_old_photos(5, time_re);
+                },
             },
             States::RECORDING => {
                 // allow camera to store 10 seconds of images
