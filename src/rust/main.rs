@@ -84,11 +84,6 @@ fn controller(
                 );
             }
         }
-
-        // take 1 picture every seconds, so sleep allowing slight processing time
-        if let Ok(sleep_time) = Duration::milliseconds(950).to_std() {
-            thread::sleep(sleep_time)
-        };
     }
 }
 

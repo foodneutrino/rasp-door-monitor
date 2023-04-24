@@ -39,8 +39,8 @@ pub fn get_file_pattern_cwd(pattern: &Regex) -> Vec<String> {
         .collect::<Vec<String>>()
 }
 
-pub fn clean_old_photos(photo_count_to_keep: i64, time_re: &Regex) {
-    let oldest_timestamp = Local::now() - Duration::seconds(photo_count_to_keep);
+pub fn clean_old_photos(duration_to_keep_sec: i64, time_re: &Regex) {
+    let oldest_timestamp = Local::now() - Duration::seconds(duration_to_keep_sec);
 
     let old_names = get_file_pattern_cwd(time_re)
         .iter()
