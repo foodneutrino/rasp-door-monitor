@@ -1,10 +1,10 @@
+use super::base::StorageEngine;
 use aws_config::meta::region::RegionProviderChain;
 use aws_sdk_s3::error::{ListBucketsError, ListObjectsV2Error};
 use aws_sdk_s3::output::{ListBucketsOutput, ListObjectsV2Output, PutObjectOutput};
 use aws_sdk_s3::types::{ByteStream, SdkError};
 use aws_sdk_s3::{Client, Region};
 use std::path::{Path, PathBuf};
-use super::base::StorageEngine;
 use tokio::runtime::Runtime;
 
 pub struct S3BlockingClient {
@@ -39,7 +39,7 @@ impl S3BlockingClient {
     pub fn store(
         &self,
         source_file: &Path,
-        destination_full_path: &str
+        destination_full_path: &str,
     ) -> Result<PutObjectOutput, String> {
         println!(
             "Attemp to store {} at {}",
@@ -55,8 +55,7 @@ impl S3BlockingClient {
                     .put_object()
                     .bucket(self.bucket_name)
                     .key(destination_full_path)
-                    .body(body)
-                )
+                    .body(body))
             })
             .and_then(|put_obj_future| {
                 self.rt
@@ -89,7 +88,11 @@ pub fn connect(region: &str) -> Result<S3BlockingClient, &'static str> {
 
             let bucket_name = String::from("door-images");
 
-            Ok(S3BlockingClient { client, rt, bucket_name})
+            Ok(S3BlockingClient {
+                client,
+                rt,
+                bucket_name,
+            })
         }
         Err(_) => Err("Failed creating async runtime"),
     }
@@ -108,10 +111,7 @@ impl StorageEngine for S3BlockingClient {
         println!("Writing {} to s3 {}", local_path, destination); // need to add bucket!
         let mut store_file = PathBuf::new();
         store_file.set_file_name(local_path);
-        if let Err(err_str) = self.store(
-            store_file.as_path(), 
-            destination
-        ) {
+        if let Err(err_str) = self.store(store_file.as_path(), destination) {
             Err(format!("move {} to S3 Failed: {}", local_path, err_str))
         } else {
             Ok(())

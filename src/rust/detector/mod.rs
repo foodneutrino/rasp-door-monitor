@@ -1,2 +1,2 @@
-pub mod reed_detector;
 pub mod detector;
+pub mod reed_detector;
