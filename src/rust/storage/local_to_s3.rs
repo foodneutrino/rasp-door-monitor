@@ -44,7 +44,7 @@ impl S3BlockingClient {
         println!(
             "Attemp to store {} at {}",
             source_file.to_str().unwrap_or("no-file-here"),
-            destination_bucket
+            destination_full_path
         );
         self.rt
             .block_on(ByteStream::from_path(source_file))
@@ -53,7 +53,7 @@ impl S3BlockingClient {
                 Ok(self
                     .client
                     .put_object()
-                    .bucket(self.bucket_name)
+                    .bucket(self.bucket_name.as_str())
                     .key(destination_full_path)
                     .body(body))
             })

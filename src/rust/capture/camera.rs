@@ -2,6 +2,7 @@ use chrono::{Duration, Local};
 use rascam::{info, SimpleCamera};
 use std::fs::File;
 use std::thread;
+use std::io::Write;
 
 pub fn photo_thread() -> thread::JoinHandle<i16> {
     let info = info().unwrap();
