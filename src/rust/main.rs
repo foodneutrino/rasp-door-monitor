@@ -2,16 +2,18 @@ extern crate aws_config;
 extern crate aws_sdk_s3;
 extern crate chrono;
 extern crate rascam;
+extern crate raspicam_rs;
 extern crate regex;
 extern crate rppal;
 extern crate tokio;
+extern crate image;
 
 mod capture;
 mod detector;
 mod storage;
 pub mod utils;
 
-use capture::camera;
+use capture::raspicam;
 use detector::reed_detector;
 use std::sync::mpsc::channel;
 use std::sync::mpsc::Receiver;
@@ -32,7 +34,7 @@ fn main() {
     let (detector_s, detector_r) = channel();
     let motion_detector = reed_detector::reed_thread(detector_s);
 
-    let camera_t = camera::photo_thread();
+    let camera_t = raspicam::photo_thread();
 
     println!("***** Threads created");
     controller(&detector_r, Box::new(storage_destination));
@@ -101,7 +103,7 @@ fn persist_all_images(storage_type: &Box<dyn StorageEngine>, file_pattern: &Rege
         let file_to_store = format!("door-{}.jpg", filename);
         if let Ok(()) = storage_type.store(
             file_to_store.as_str(),
-            format!("{}/detection_{:0>2}", time_base, image_number).as_str(),
+            format!("{}/detection_{:0>2}.jpg", time_base, image_number).as_str(),
         ) {
             let mut delete_file = PathBuf::new();
             delete_file.set_file_name(file_to_store);
