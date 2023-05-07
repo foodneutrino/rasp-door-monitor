@@ -1,7 +1,7 @@
 use chrono::{Duration, Local};
-use image::RgbImage;
+use image::{RgbImage, ImageFormat};
 use raspicam_rs::{
-    bindings::{RASPICAM_EXPOSURE, RASPICAM_FORMAT},
+    bindings::RASPICAM_FORMAT,
     RaspiCam,
 };
 use std::thread;
@@ -10,8 +10,8 @@ pub fn photo_thread() -> thread::JoinHandle<i16> {
     thread::spawn(|| {
         let mut raspicam = raspicam_rs::RaspiCam::new();
         raspicam
-            .set_capture_size(3280, 2464)
-            .set_frame_rate(30)
+            .set_capture_size(1640, 1232)
+            .set_frame_rate(60)
             .set_format(RASPICAM_FORMAT::RASPICAM_FORMAT_RGB)
             .open(true)
             .unwrap();
@@ -30,8 +30,8 @@ pub fn photo_thread() -> thread::JoinHandle<i16> {
 
 fn take_photo(camera: &mut RaspiCam) {
     println!("****** Camera Taking picture");
-    let image_name = format!("./door-{}.png", Local::now().format("%Y%m%d-%T"));
-    let img = RgbImage::from_raw(3280, 2464, camera.grab().unwrap().to_vec()).unwrap();
+    let image_name = format!("./door-{}.jpg", Local::now().format("%Y%m%d-%T"));
+    let img = RgbImage::from_raw(1640, 1232, camera.grab().unwrap().to_vec()).unwrap();
     println!("****** Storing to {}", image_name);
-    img.save(image_name).unwrap();
+    img.save_with_format(image_name, ImageFormat::Jpeg).unwrap();
 }
