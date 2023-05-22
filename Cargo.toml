@@ -5,6 +5,9 @@ authors = ["David LaBarbera"]
 
 [dependencies]
 chrono = "0.4.23"
+#raspicam-rs = { path = "/home/pi/raspicam-rs" }
+raspicam-rs = "0.1.3"
+image = "0.24.4"
 rascam = { version = "0.0.2", features = ["debug"] }
 rppal = { version = "0.13.1", features = ["hal"] }
 regex = "1"
