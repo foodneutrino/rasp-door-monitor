@@ -1,7 +1,6 @@
 extern crate aws_config;
 extern crate aws_sdk_s3;
 extern crate chrono;
-extern crate rascam;
 extern crate raspicam_rs;
 extern crate regex;
 extern crate rppal;
